@@ -1,0 +1,11 @@
+{
+  "name": "slack-plot",
+  "version": "1.0.0",
+  "description": "Simple slackbot which build plots",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Oleg Krasavin <t5633@ya.ru>",
+  "license": "MIT"
+}
