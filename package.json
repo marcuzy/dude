@@ -7,5 +7,16 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Oleg Krasavin <t5633@ya.ru>",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^3.0.1",
+    "eslint-config-standard": "^5.3.1",
+    "eslint-plugin-standard": "^1.3.2"
+  },
+  "dependencies": {
+    "@slack/client": "^3.5.0",
+    "cloudinary": "^1.4.1",
+    "moment": "^2.14.1",
+    "plotly": "^1.0.6"
+  }
 }

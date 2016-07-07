@@ -1,0 +1,9 @@
+#! /usr/bin/env bash
+
+export SLACK_API_TOKEN='<TOKEN>'
+export PLOTLY_LOGIN='<LOGIN>'
+export PLOTLY_API_KEY='<KEY>'
+export CLOUDINARY_NAME='<NAME>'
+export CLOUDINARY_API_KEY='<KEY>'
+export CLOUDINARY_API_SECRET='<SECRET>'
+node index.js
