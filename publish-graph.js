@@ -7,7 +7,7 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-function sendGraph(channel, points) {
+function publishGraph(channel, points) {
     return new Promise((resolve, reject) => {
         let x = [],
             y = [];
@@ -17,13 +17,15 @@ function sendGraph(channel, points) {
             y.push(point[1]);
         }
 
-        let trace1 = {
-            x,
-            y,
-            type: 'scatter'
+        let figure = { 
+            'data': [
+                {
+                    x,
+                    y,
+                    type: 'scatter'
+                }
+            ] 
         };
-
-        let figure = { 'data': [trace1] };
 
         let imgOpts = {
             format: 'png',
@@ -40,7 +42,6 @@ function sendGraph(channel, points) {
             }
 
             let stream = cloudinary.uploader.upload_stream(function(result) { 
-                console.log(result);
                 resolve(result.url);
             });
 
@@ -49,4 +50,4 @@ function sendGraph(channel, points) {
     });
 }
 
-module.exports = sendGraph;
+module.exports = publishGraph;

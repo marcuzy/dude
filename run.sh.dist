@@ -6,4 +6,5 @@ export PLOTLY_API_KEY='<KEY>'
 export CLOUDINARY_NAME='<NAME>'
 export CLOUDINARY_API_KEY='<KEY>'
 export CLOUDINARY_API_SECRET='<SECRET>'
+
 node index.js
