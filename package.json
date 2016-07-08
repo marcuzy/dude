@@ -18,5 +18,8 @@
     "cloudinary": "^1.4.1",
     "moment": "^2.14.1",
     "plotly": "^1.0.6"
+  },
+  "engines": {
+    "node": ">=6.2.2"
   }
 }

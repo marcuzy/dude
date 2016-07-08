@@ -1,9 +1,10 @@
 const RtmClient = require('@slack/client').RtmClient;
 const MemoryDataStore = require('@slack/client').MemoryDataStore;
 const CLIENT_EVENTS = require('@slack/client').CLIENT_EVENTS;
-const RTM_EVENTS = require('@slack/client').RTM_EVENTS;
 const moment = require('moment');
 const publishGraph = require('./publish-graph');
+const Router = require('./router');
+const QueriesCollection = require('./queries-collection');
 
 /**
  * Максимальное число точек для одного графа.
@@ -11,115 +12,142 @@ const publishGraph = require('./publish-graph');
  */
 const MAX_POINTS = 20;
 
-const rtm = new RtmClient(process.env.SLACK_API_TOKEN , {
-    logLevel: 'error',
-    dataStore: new MemoryDataStore()
-});
-
+/** @type {string} */
 var botId = '';
 
 /**
  * Хранит запросы от пользователей.
  */
-var queries = new Map();
+var queries = new QueriesCollection();
+
+const rtm = new RtmClient(process.env.SLACK_API_TOKEN , {
+    logLevel: 'error',
+    dataStore: new MemoryDataStore()
+});
+
+const router = new Router(rtm);
 
 rtm.on(CLIENT_EVENTS.RTM.AUTHENTICATED, function (rtmStartData) {
     botId = rtmStartData.self.id;
     console.log(`Logged in as ${rtmStartData.self.name} of team ${rtmStartData.team.name}, but not yet connected to a channel`);
-});
 
-rtm.on(RTM_EVENTS.MESSAGE, function (message) {
- 
-    if (message.type !== 'message' || message.subtype !== undefined) return;
-
-    let {user, channel, text} = message,
-        date = moment().format('DD.MM.YY kk:mm:ss'),
-        userName = '?';
-
-    if (rtm.dataStore.getUserById(message.user)) 
-        userName = rtm.dataStore.getUserById(message.user).name;
-
-    console.info(`[${date}] ${userName}: ${text}`);
-
-    if (text == 'help') {
-        rtm.sendMessage(
-            `\`<@${botId}>: get velocity graph\` - to start collecting points\n` + 
-            '`done` - to start processing input data\n' +
-            '`help` - to getting help',
-            message.channel
-        );
-
-        return;
-    }
-
-    if (text == `<@${botId}>: get velocity graph`) {
-        //регистрация запроса
-        queries.set(user+channel, []);
-        
-        rtm.sendMessage(
-            'Hi! Im ready to listening. Type me in each message two digits: sprint number and done story points. ' + 
-            'Type `done` to start processing input data.', 
-            message.channel
-        );
-
-        return;
-    }
-
-    if (queries.has(user+channel)) {
-
-        /**
-         * Окончание сбора данных и построение графика.
-         */
-        if (text == 'done') {
-            let points = queries.get(user+channel);
-
-            queries.delete(user+channel);
-
-            if (points.length == 0) {
-                rtm.sendMessage('There are no points. The operation is canceled.', message.channel);
-                return;
-            }
-
-            rtm.sendMessage('Wait a minute..', message.channel);
-
-            publishGraph(points).then((url) => {
-                rtm.sendMessage(url, message.channel);  
-            }, () => {
-                rtm.sendMessage('Something has gone wrong. Sorry ;(', message.channel); 
-            });
-
-            return;
-        }
-        
-        /**
-         * Сбор точек для графика.
-         */
-        let coords = text.match(/^([\-]{0,1}\d+) ([\-]{0,1}\d+)$/);
-
-        if (coords == null || coords.length !== 3) {
-            rtm.sendMessage('Incorrect data. Please, try again!', message.channel);
-        } else {
-            
-            let points = queries.get(user+channel);
-
-            if (points.length >= MAX_POINTS) {
-                rtm.sendMessage(
-                    `Exceeded maximum number of points (${MAX_POINTS})!` + 
-                    'Type `done` to start processing input data', 
-                    message.channel
-                );
-
-                return;  
-            }
-
-            let x = coords[1],
-                y = coords[2];
-
-            points.push([x,y]);
-        }
-    }
-  
+    init();
 });
 
 rtm.start();
 
+function init() {
+
+    /**
+     * Логирование сообщений.
+     */
+    router.message(Router.ANY_MESSAGE, (rtm, {user, text}) => {
+
+        let date = moment().format('DD.MM.YY kk:mm:ss'),
+            userName = '?';
+
+        if (rtm.dataStore.getUserById(user)) 
+            userName = rtm.dataStore.getUserById(user).name;
+
+        console.info(`[${date}] ${userName}: ${text}`);
+
+        /**
+         * Если обработчки возвращает true - роутер продолжает перебирать остальные обработчики.
+         */
+        return true;
+
+    });
+
+    /**
+     * Справка.
+     */
+    router.message('help', (rtm, {channel}) => {
+
+        rtm.sendMessage(
+            `\`<@${botId}>: get velocity graph\` - to start collecting points\n` + 
+            '`done` - to start processing input data\n' +
+            '`help` - to getting help',
+            channel
+        );
+
+    });
+
+    /**
+     * Начать работу.
+     */
+    router.message(`<@${botId}>: get velocity graph`, (rtm, {user, channel}) => {
+        //регистрация запроса
+        queries.register(user, channel);
+        
+        rtm.sendMessage(
+            'Hi! Im ready to listening. Type me in each message two digits: sprint number and done story points. ' + 
+            'Type `done` to start processing input data.', 
+            channel
+        );
+
+    });
+
+    /**
+     * Завершить сбор точек.
+     */
+    router.message('done', (rtm, {user, channel}) => {
+
+        if (!queries.has(user, channel)) {
+            return;
+        }
+
+        let points = queries.get(user, channel);
+        queries.unregister(user, channel);
+
+        if (points.length == 0) {
+            rtm.sendMessage('There are no points. The collecting is canceled.', channel);
+            return;
+        }
+
+        rtm.sendMessage('Wait a minute..', channel);
+
+        publishGraph(points).then((url) => {
+            rtm.sendMessage(url, channel);  
+        }, () => {
+            rtm.sendMessage('Something has gone wrong. Sorry ;(', channel); 
+        });
+
+    });
+
+    /**
+     * Ввод точки.
+     */
+    router.message(/^([\-]{0,1}\d{1,11}) ([\-]{0,1}\d{1,11})$/, (rtm, {user, channel}, [x, y]) => {
+
+        if (!queries.has(user, channel)) {
+            return;
+        }
+
+        let points = queries.get(user, channel);
+
+        if (points.length >= MAX_POINTS) {
+            rtm.sendMessage(
+                `Exceeded maximum number of points (${MAX_POINTS})!` + 
+                'Type `done` to start processing input data', 
+                channel
+            );
+
+            return;  
+        }
+
+        points.push([x,y]);
+
+    });
+
+    /**
+     * Если сообщение дошло сюда при том, что сессия по сборке для этого юзера в этом канале начата,
+     * значит юзер ввел неверные данные.
+     */
+    router.message(Router.ANY_MESSAGE, (rtm, {user, channel}) => {
+
+        if (queries.has(user, channel)) {
+            rtm.sendMessage('Incorrect data. Please, try again, bro.', channel);
+        }
+    
+    });
+}

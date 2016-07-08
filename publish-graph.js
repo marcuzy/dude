@@ -8,6 +8,9 @@ cloudinary.config({
 });
 
 /**
+ * Создает граф по переданным точкам, загружает на сервер.
+ * Promise вернет ссылку на загруженную картинку.
+ * 
  * @prop {array} points
  * 
  * @returns {Promise}
