@@ -61,12 +61,12 @@ function init() {
     /**
      * Справка.
      */
-    router.message('help', (rtm, {channel}) => {
+    router.message(`<@${botId}>: help`, (rtm, {channel}) => {
 
         rtm.sendMessage(
             `\`<@${botId}>: get velocity graph\` - to start collecting points\n` + 
             '`done` - to start processing input data\n' +
-            '`help` - to getting help',
+            `\`<@${botId}>: help\` - to getting help`,
             channel
         );
 
@@ -82,6 +82,18 @@ function init() {
         rtm.sendMessage(
             'Hi! Im ready to listening. Type me in each message two digits: sprint number and done story points. ' + 
             'Type `done` to start processing input data.', 
+            channel
+        );
+
+    });
+
+    /**
+     * Моя твоя не понимать.
+     */
+    router.message(new RegExp(`^<@${botId}>:.*$`), (rtm, {channel}) => {
+
+        rtm.sendMessage(
+            `I don\'t understand you, bro. Use \`<@${botId}>: help\` command to getting help.`, 
             channel
         );
 
