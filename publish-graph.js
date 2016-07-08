@@ -7,7 +7,14 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
+/**
+ * @prop {string} channel
+ * @prop {array} points
+ * 
+ * @returns {Promise}
+ */
 function publishGraph(channel, points) {
+    
     return new Promise((resolve, reject) => {
         let x = [],
             y = [];
@@ -33,14 +40,16 @@ function publishGraph(channel, points) {
             height: 500
         };
 
+        //отправить запрос для построения графика и получить картинку
         plotly.getImage(figure, imgOpts, (error, imageStream) => {
 
             if (error) {
-                console.error (error);
+                console.error(error);
                 reject(error);
                 return;
             }
 
+            //стрим для загрузки картинки с графом на сервер cloudinary
             let stream = cloudinary.uploader.upload_stream(function(result) { 
                 resolve(result.url);
             });

@@ -5,6 +5,10 @@ const RTM_EVENTS = require('@slack/client').RTM_EVENTS;
 const moment = require('moment');
 const publishGraph = require('./publish-graph');
 
+/**
+ * Максимальное число точек для одного графа.
+ * @type {number}
+ */
 const MAX_POINTS = 20;
 
 const rtm = new RtmClient(process.env.SLACK_API_TOKEN , {
@@ -13,12 +17,14 @@ const rtm = new RtmClient(process.env.SLACK_API_TOKEN , {
 });
 
 var botId = '';
-var queryPattern = null;
+
+/**
+ * Хранит запросы от пользователей.
+ */
 var queries = new Map();
 
 rtm.on(CLIENT_EVENTS.RTM.AUTHENTICATED, function (rtmStartData) {
     botId = rtmStartData.self.id;
-    queryPattern = new RegExp(`^<@${botId}>: get velocity graph$`);
     console.log(`Logged in as ${rtmStartData.self.name} of team ${rtmStartData.team.name}, but not yet connected to a channel`);
 });
 
@@ -35,12 +41,24 @@ rtm.on(RTM_EVENTS.MESSAGE, function (message) {
 
     console.info(`[${date}] ${userName}: ${text}`);
 
-    if (queryPattern.test(text)) {
+    if (text == 'help') {
+        rtm.sendMessage(
+            `\`<@${botId}>: get velocity graph\` - to start collecting points\n` + 
+            '`done` - to start processing input data\n' +
+            '`help` - to getting help',
+            message.channel
+        );
+
+        return;
+    }
+
+    if (text == `<@${botId}>: get velocity graph`) {
+        //регистрация запроса
         queries.set(user+channel, []);
         
         rtm.sendMessage(
             'Hi! Im ready to listening. Type me in each message two digits: sprint number and done story points. ' + 
-            'Type "done" to start processing input data.', 
+            'Type `done` to start processing input data.', 
             message.channel
         );
 
@@ -48,10 +66,19 @@ rtm.on(RTM_EVENTS.MESSAGE, function (message) {
     }
 
     if (queries.has(user+channel)) {
- 
+
+        /**
+         * Окончание сбора данных и построение графика.
+         */
         if (text == 'done') {
             let points = queries.get(user+channel);
+
             queries.delete(user+channel);
+
+            if (points.length == 0) {
+                rtm.sendMessage('There are no points. The operation is canceled.', message.channel);
+                return;
+            }
 
             rtm.sendMessage('Wait a minute', message.channel);
 
@@ -63,18 +90,22 @@ rtm.on(RTM_EVENTS.MESSAGE, function (message) {
 
             return;
         }
-
+        
+        /**
+         * Сбор точек для графика.
+         */
         let coords = text.match(/^([\-]{0,1}\d+) ([\-]{0,1}\d+)$/);
 
         if (coords == null || coords.length !== 3) {
-            rtm.sendMessage('Illegal data. Please, try again!', message.channel);
+            rtm.sendMessage('Incorrect data. Please, try again!', message.channel);
         } else {
+            
             let points = queries.get(user+channel);
 
             if (points.length >= MAX_POINTS) {
                 rtm.sendMessage(
                     `Exceeded maximum number of points (${MAX_POINTS})!` + 
-                    'Type "done" to start processing input data', 
+                    'Type `done` to start processing input data', 
                     message.channel
                 );
 
