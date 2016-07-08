@@ -80,9 +80,9 @@ rtm.on(RTM_EVENTS.MESSAGE, function (message) {
                 return;
             }
 
-            rtm.sendMessage('Wait a minute', message.channel);
+            rtm.sendMessage('Wait a minute..', message.channel);
 
-            publishGraph(channel, points).then((url) => {
+            publishGraph(points).then((url) => {
                 rtm.sendMessage(url, message.channel);  
             }, () => {
                 rtm.sendMessage('Something has gone wrong. Sorry ;(', message.channel); 

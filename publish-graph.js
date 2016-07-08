@@ -8,13 +8,12 @@ cloudinary.config({
 });
 
 /**
- * @prop {string} channel
  * @prop {array} points
  * 
  * @returns {Promise}
  */
-function publishGraph(channel, points) {
-    
+function publishGraph(points) {
+
     return new Promise((resolve, reject) => {
         let x = [],
             y = [];
